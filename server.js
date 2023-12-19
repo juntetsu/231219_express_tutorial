@@ -6,6 +6,9 @@ const userRouter = require("./routes/user");
 // PORTを指定する
 const PORT = 3000;
 
+// ミドルウェアを使用する
+// app.use(mylogger);
+
 // ルーティングを設定する
 app.use("/user", userRouter);
 // app.use("/auth", authRouter);
@@ -19,8 +22,8 @@ app.use("/user", userRouter);
 app.set("view engine", "ejs");
 
 app.get("/", (req, res) => {
-  res.render("index", {title: "Node.jsとExpress!"})
-})
+  res.render("index", { title: "Node.jsとExpress!" });
+});
 
 // expressを使ってサーバーを立てる
 app.listen(PORT, () => console.log("サーバーが起動しました"));

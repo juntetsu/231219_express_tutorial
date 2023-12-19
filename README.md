@@ -12,6 +12,11 @@
   - [動的なルーティング](#動的なルーティング)
   - [静的ファイル（HTML） をレンダリングしてみる](#静的ファイルhtml-をレンダリングしてみる)
   - [動的なファイルを読み込ませる](#動的なファイルを読み込ませる)
+  - [ミドルウェア](#ミドルウェア)
+    - [ミドルウェアを使ってみる](#ミドルウェアを使ってみる)
+    - [注意点](#注意点)
+  - [特定のルートではミドルウェアを適用させたくない場合](#特定のルートではミドルウェアを適用させたくない場合)
+  - [特定のディレクトリの特定のメソッドでだけ、ミドルウェアを適用させたい場合](#特定のディレクトリの特定のメソッドでだけミドルウェアを適用させたい場合)
 
 # Express（node.js）の基礎
 
@@ -381,8 +386,142 @@ index.ejs
 <h1>Hello <%= title %></h1>
 ```
 
-localhost:3000にアクセスすると、`Hello Node.jsとExpress!`と表示される。
-***
+localhost:3000 にアクセスすると、`Hello Node.jsとExpress!`と表示される。
+
+---
 
 6. （おまけ）  
-毎回<%= %>と記述するのはめんどいので、"ejs language supportプラグイン利用すると楽。
+   毎回<%= %>と記述するのはめんどいので、"ejs language support プラグイン利用すると楽。
+
+## ミドルウェア
+
+簡単にいうと、クライアントからサーバーへリクエストを送る前に、何かチェックをいれたり、中間で処理を入れる。  
+これが**ミドルウェア**
+
+認証していればレスポンスを返す、等の処理を書いたりする。
+
+### ミドルウェアを使ってみる
+
+例として、リクエストを送る前に現在のパスを出力するミドルウェアを設定する。
+
+1. ミドルウェア関数の作成
+
+server.js
+
+```javascript
+function mylogger(req, res, next) {
+  //　アクセスされたパス名を出力する処理
+  console.log(req.originalUrl);
+
+  // 次の処理を行う記述（今回で言うとapp.get)
+  next();
+}
+```
+
+2. ミドルウェアの使用
+
+上から下に処理が流れていくので、app.get()よりも前に`app.use(mylogger)`と記述する必要がある。
+
+server.js
+
+```javascript
+const express = require("express");
+const app = express();
+const userRouter = require("./routes/user");
+const PORT = 3000;
+
+// ミドルウェアを使用する
+app.use(mylogger);
+
+app.use("/user", userRouter);
+app.set("view engine", "ejs");
+
+app.get("/", (req, res) => {
+  res.render("index", { title: "Node.jsとExpress!" });
+});
+
+//　ミドルウェア
+function mylogger(req, res, next) {
+  // アクセスされたパス名を出力する
+  console.log(req.originalUrl);
+
+  // 次のミドルウェアに処理を渡す記述
+  next();
+}
+
+app.listen(PORT, () => console.log("サーバーが起動しました"));
+```
+
+ターミナルに、`/`とパスが出力された。
+
+```
+[nodemon] restarting due to changes...
+[nodemon] starting `node server.js`
+サーバーが起動しました
+/
+```
+
+### 注意点
+
+`app.use(mylogger)`を、`app.get()`の後ろに記述してしまった場合  
+`app.get()`内の`res.render()`によってサイクルが全てストップしてしまう。  
+(mylogger に行きつかない)
+
+ミドルウェアを使う場合は一番上で実行する必要があるので注意。
+
+## 特定のルートではミドルウェアを適用させたくない場合
+
+試しに`localhost:3000/user`にアクセスすると、`/user`と出力される。  
+つまりどの URL に対してもミドルウェアが設定されている。
+
+`/user`には適用させたいが、ルートディレクトリには適用させたくない場合。  
+まず、server.js に記述してあるミドルウェアを削除して、`user.js`に記述する。
+
+routes/user.js
+
+```diff
+const express = require("express");
+const router = express.Router();
+
++ // app.use()ではなく、router.use()
++ router.use(mylogger);
+
+router.get("/", (req, res) => {
+  res.send("ユーザーです");
+});
+router.get("/info", (req, res) => {
+  res.send("ユーザー情報です");
+});
+
+router.get("/:id", (req, res) => {
+  res.send(`${req.params.id}のユーザー情報を取得しました`);
+});
+
++ //　ミドルウェア
++ function mylogger(req, res, next) {
++   // アクセスされたパス名を出力する
++   console.log(req.originalUrl);
++ 
++   // 次のミドルウェアに処理を渡す記述
++   next();
++ }
+
+// routerをモジュールとして扱う準備
+module.exports = router;
+```
+
+`localhost:3000/user/info`にアクセスすると、`/user/info`と出力され、  
+ルートディレクトリにアクセスしても何も出力されない。
+
+## 特定のディレクトリの特定のメソッドでだけ、ミドルウェアを適用させたい場合
+
+例えば、`/user`の`get()`メソッドにだけ適用させたい。  
+そのような場合、第２引数に`mylogger`を指定するだけでいい。
+
+```diff
+- router.use(mylogger)
+
+- router.get("/", (req, res) => {
++ router.get("/", mylogger, (req, res) => {
+  res.send("ユーザーです");
+});```
