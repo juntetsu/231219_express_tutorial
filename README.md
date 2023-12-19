@@ -10,6 +10,8 @@
     - [2. server.js に記述　　](#2-serverjs-に記述)
     - [3. ルーティング](#3-ルーティング)
   - [動的なルーティング](#動的なルーティング)
+  - [静的ファイル（HTML） をレンダリングしてみる](#静的ファイルhtml-をレンダリングしてみる)
+  - [動的なファイルを読み込ませる](#動的なファイルを読み込ませる)
 
 # Express（node.js）の基礎
 
@@ -272,3 +274,115 @@ router.get("/:id", (req, res) => {
 
 試しに`http://localhost:3000/user/123`にアクセスすると、  
 `123のユーザー情報を取得しました`と表示される。
+
+## 静的ファイル（HTML） をレンダリングしてみる
+
+これまでは`res.send()`で文字列のみ表示させていたが、HTML をレンダリングしてみる。
+
+1. `public`ディレクトリに index.html と style.css 用意
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Hello Express!</h1>
+  </body>
+</html>
+```
+
+```css
+body {
+  background-color: beige;
+  color: cadetblue;
+}
+```
+
+2. server.js で読み込む
+
+```javascript
+// publicディレクトリから静的ファイルを読み込む
+app.use(express.static("public"));
+```
+
+3. ローカルホストにアクセスし、HTML,CSS が当たっていることを確認
+
+## 動的なファイルを読み込ませる
+
+Express のテンプレートエンジンを利用することで、DB を読み込ませたり、動的なファイルを使うことができる。
+
+1. テンプレートエンジンのインストール（EJS）  
+   `npm i ejs`
+
+---
+
+2. server.js で、テンプレートエンジンを設定
+   server.js
+
+```javascript
+// テンプレートエンジンをEJSに設定する
+app.set("view engine", "ejs");
+```
+
+テンプレートエンジンとは、DB で用意されたデータをテンプレートファイルで読み込ませて、HTML で表示させるもの　　
+Express のテンプレートエンジンには EJS の他にも Pug とか Mustache がある
+
+---
+
+3. views ディレクトリに`index.ejs`作成
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+  </body>
+</html>
+```
+
+---
+
+4. 3 で作成した views/index.ejs を読み込ませる  
+   読み込みには`res.render()`関数を用いる
+
+server.js
+
+```javascript
+app.get("/", (req, res) => {
+  res.render("index", { title: "Node.jsとExpress!" });
+});
+```
+
+(本来ならば{}の中は DB から取得。今回はハードコーディング)
+
+localhost:3000 にアクセスすると、`views/index.ejs`の"Hello"だけが表示されている。
+
+これからやりたいことは `res.render()` 内で記述した`{}`の内容を、`index.ejs` に渡して `Hello Node.js と Express!` と表示させたい。
+
+---
+
+5. index.ejs に渡して出力
+
+テンプレートエンジンを使用するには`<%= %>`と記述する。
+
+index.ejs
+
+```html
+<h1>Hello <%= title %></h1>
+```
+
+localhost:3000にアクセスすると、`Hello Node.jsとExpress!`と表示される。
+***
+
+6. （おまけ）  
+毎回<%= %>と記述するのはめんどいので、"ejs language supportプラグイン利用すると楽。
